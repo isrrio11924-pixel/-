@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #16233d;
+  --ink-soft: #2b3a58;
+  --paper: #f5f3ee;
+  --paper-raised: #ffffff;
+  --gold: #c99a3d;
+  --gold-soft: #e8d4a4;
+  --moss: #5b7b5a;
+  --moss-soft: #e3ead9;
+  --berry: #a64b4b;
+  --berry-soft: #f3dede;
+  --slate: #6b7280;
+  --line: #dcd7ca;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-gold: var(--gold);
+  --color-moss: var(--moss);
+  --color-berry: var(--berry);
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
+    "Noto Sans JP", "Meiryo", sans-serif;
+}
+
+/* 見出し用の明朝体スタック（航海日誌の雰囲気を出す display フォント） */
+.font-display {
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Shippori Mincho",
+    "Noto Serif JP", serif;
+}
+
+/* 航路の罫線モチーフ：セクション区切りに使う一本線 */
+.course-rule {
+  position: relative;
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--line) 0,
+    var(--line) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.compass-dot {
+  box-shadow: 0 0 0 4px var(--paper), 0 0 0 5px var(--line);
+}
