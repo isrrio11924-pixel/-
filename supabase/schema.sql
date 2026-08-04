@@ -91,6 +91,15 @@ create table reactions (
   unique (check_in_id, profile_id, kind)
 );
 
+-- フェーズ2用：コメント（公開されたチェックインへのコメント）
+create table comments (
+  id uuid primary key default uuid_generate_v4(),
+  check_in_id uuid not null references check_ins(id) on delete cascade,
+  profile_id uuid not null references profiles(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
 -- ============ Row Level Security ============
 alter table profiles enable row level security;
 alter table mentor_mentee_relations enable row level security;
@@ -144,3 +153,41 @@ create policy "check_ins_mentor_read" on check_ins
 -- メンターノートは書いたメンター本人のみ閲覧可（メンティーには見せない）
 create policy "mentor_notes_owner" on mentor_notes
   for all using (auth.uid() = mentor_id) with check (auth.uid() = mentor_id);
+
+-- ============ フェーズ2：公開フィード ============
+alter table reactions enable row level security;
+alter table comments enable row level security;
+
+-- 公開設定(public)のチェックインは、ログイン中の誰でも読める
+create policy "check_ins_public_read" on check_ins
+  for select using (visibility = 'public');
+
+-- リアクション：公開チェックインに対してなら誰でも付けられる／外せる
+create policy "reactions_insert" on reactions
+  for insert with check (
+    auth.uid() = profile_id
+    and exists (select 1 from check_ins c where c.id = check_in_id and c.visibility = 'public')
+  );
+
+create policy "reactions_select" on reactions
+  for select using (
+    exists (select 1 from check_ins c where c.id = check_in_id and c.visibility = 'public')
+  );
+
+create policy "reactions_delete_own" on reactions
+  for delete using (auth.uid() = profile_id);
+
+-- コメント：公開チェックインに対してなら誰でも書ける・読める
+create policy "comments_insert" on comments
+  for insert with check (
+    auth.uid() = profile_id
+    and exists (select 1 from check_ins c where c.id = check_in_id and c.visibility = 'public')
+  );
+
+create policy "comments_select" on comments
+  for select using (
+    exists (select 1 from check_ins c where c.id = check_in_id and c.visibility = 'public')
+  );
+
+create policy "comments_delete_own" on comments
+  for delete using (auth.uid() = profile_id);
