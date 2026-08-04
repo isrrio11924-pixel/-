@@ -19,7 +19,7 @@ export default function Home() {
       <div className="mx-auto max-w-3xl px-6 pb-24">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <Link
-            href="/join?role=mentee"
+            href="/login?role=mentee"
             className="group relative rounded-lg border border-[var(--line)] bg-[var(--paper-raised)] p-8 transition hover:border-[var(--gold)] hover:shadow-[0_8px_24px_-12px_rgba(22,35,61,0.25)]"
           >
             <span className="text-xs tracking-[0.2em] text-[var(--gold)]">MENTEE</span>
@@ -35,7 +35,7 @@ export default function Home() {
           </Link>
 
           <Link
-            href="/join?role=mentor"
+            href="/login?role=mentor"
             className="group relative rounded-lg border border-[var(--line)] bg-[var(--paper-raised)] p-8 transition hover:border-[var(--gold)] hover:shadow-[0_8px_24px_-12px_rgba(22,35,61,0.25)]"
           >
             <span className="text-xs tracking-[0.2em] text-[var(--gold)]">MENTOR</span>

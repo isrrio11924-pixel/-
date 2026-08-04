@@ -9,11 +9,12 @@ import {
   addCompany,
   getCheckInsForMentee,
   getCompaniesForMentee,
+  getCurrentUser,
   getProfile,
+  signOut,
   updateCompany,
-  updateLoginCode,
+  type Profile,
 } from "@/lib/data";
-import { clearSession, loadSession, type Session } from "@/lib/session";
 import {
   STATUS_LABEL,
   TAG_LABEL,
@@ -48,7 +49,7 @@ const TAG_OPTIONS: StruggleTag[] = [
 
 export default function MenteePage() {
   const router = useRouter();
-  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [myCheckIns, setMyCheckIns] = useState<CheckIn[]>([]);
@@ -62,13 +63,24 @@ export default function MenteePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const s = loadSession();
-    if (!s || s.role !== "mentee") {
-      router.replace("/join?role=mentee");
-      return;
-    }
-    setSession(s);
-    refresh(s.id);
+    (async () => {
+      const user = await getCurrentUser();
+      if (!user) {
+        router.replace("/login?role=mentee");
+        return;
+      }
+      const p = await getProfile(user.id);
+      if (!p) {
+        router.replace("/onboarding?role=mentee");
+        return;
+      }
+      if (p.role !== "mentee") {
+        router.replace("/mentor");
+        return;
+      }
+      setProfile(p);
+      refresh(p.id);
+    })();
   }, [router]);
 
   async function refresh(menteeId: string) {
@@ -97,39 +109,39 @@ export default function MenteePage() {
   }
 
   async function handleStatusChange(status: SelectionStatus) {
-    if (!activeCompany || !session) return;
+    if (!activeCompany || !profile) return;
     await updateCompany(activeCompany.id, { status });
-    refresh(session.id);
+    refresh(profile.id);
   }
 
   async function handleTempChange(temp: Temperature) {
-    if (!activeCompany || !session) return;
+    if (!activeCompany || !profile) return;
     await updateCompany(activeCompany.id, { temperature: temp });
-    refresh(session.id);
+    refresh(profile.id);
   }
 
   async function handleSubmit() {
-    if (!note.trim() || !session) return;
-    await addCheckIn(session.id, note.trim(), selectedTags, activeCompany?.id);
+    if (!note.trim() || !profile) return;
+    await addCheckIn(profile.id, note.trim(), selectedTags, activeCompany?.id);
     setNote("");
     setSelectedTags([]);
     setSaved(true);
-    refresh(session.id);
+    refresh(profile.id);
     setTimeout(() => setSaved(false), 2200);
   }
 
   async function handleAddCompany(e: React.FormEvent) {
     e.preventDefault();
-    if (!newCompanyName.trim() || !session) return;
-    const created = await addCompany(session.id, newCompanyName.trim(), newCompanyIndustry.trim());
+    if (!newCompanyName.trim() || !profile) return;
+    const created = await addCompany(profile.id, newCompanyName.trim(), newCompanyIndustry.trim());
     setNewCompanyName("");
     setNewCompanyIndustry("");
     setShowAddForm(false);
-    await refresh(session.id);
+    await refresh(profile.id);
     setActiveCompanyId(created.id);
   }
 
-  if (!session || loading) {
+  if (!profile || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--paper)]">
         <p className="text-sm text-[var(--slate)]">読み込み中...</p>
@@ -139,7 +151,7 @@ export default function MenteePage() {
 
   return (
     <div className="min-h-screen bg-[var(--paper)] pb-24">
-      <TopBar profileId={session.id} name={session.name} role="mentee" />
+      <TopBar name={profile.name} role="mentee" />
 
       {error && (
         <div className="mx-auto mt-4 max-w-5xl px-6">
@@ -150,7 +162,6 @@ export default function MenteePage() {
       )}
 
       <main className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-6 pt-8 lg:grid-cols-[1.1fr_1.4fr]">
-        {/* 左：企業一覧 */}
         <section>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg text-[var(--ink)]">企業一覧</h2>
@@ -219,7 +230,6 @@ export default function MenteePage() {
           </div>
         </section>
 
-        {/* 右：チェックイン */}
         <section className="rounded-lg border border-[var(--line)] bg-white p-6">
           {activeCompany ? (
             <>
@@ -340,117 +350,29 @@ export default function MenteePage() {
   );
 }
 
-function TopBar({
-  profileId,
-  name,
-  role,
-}: {
-  profileId: string;
-  name: string;
-  role: "mentee" | "mentor";
-}) {
+function TopBar({ name, role }: { name: string; role: "mentee" | "mentor" }) {
   const router = useRouter();
-  const [showSettings, setShowSettings] = useState(false);
-  const [currentCode, setCurrentCode] = useState<string | null>(null);
-  const [newCode, setNewCode] = useState("");
-  const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function openSettings() {
-    setShowSettings((v) => !v);
-    if (!currentCode) {
-      try {
-        const p = await getProfile(profileId);
-        setCurrentCode(p.login_code);
-      } catch {
-        // noop
-      }
-    }
-  }
-
-  async function handleSaveCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newCode.trim()) return;
-    setSaving(true);
-    setMsg(null);
-    try {
-      const normalized = await updateLoginCode(profileId, newCode);
-      setCurrentCode(normalized);
-      setNewCode("");
-      setMsg({ type: "ok", text: "変更しました" });
-    } catch (err) {
-      setMsg({ type: "error", text: err instanceof Error ? err.message : "変更に失敗しました" });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <header className="border-b border-[var(--line)] bg-[var(--paper-raised)]/60 backdrop-blur">
-      <div className="mx-auto max-w-5xl px-6 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="font-display text-lg text-[var(--ink)]">
-            航路
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-[var(--slate)]">
-              {role === "mentee" ? "メンティー" : "メンター"}
-            </span>
-            <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">
-              {name}
-            </span>
-            <button
-              onClick={openSettings}
-              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
-            >
-              コード設定
-            </button>
-            <button
-              onClick={() => {
-                clearSession();
-                router.push("/join");
-              }}
-              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
-            >
-              切り替える
-            </button>
-          </div>
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <Link href="/" className="font-display text-lg text-[var(--ink)]">
+          航路
+        </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-[var(--slate)]">
+            {role === "mentee" ? "メンティー" : "メンター"}
+          </span>
+          <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">{name}</span>
+          <button
+            onClick={async () => {
+              await signOut();
+              router.push("/login");
+            }}
+            className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+          >
+            ログアウト
+          </button>
         </div>
-
-        {showSettings && (
-          <div className="mt-3 rounded-md border border-[var(--line)] bg-white p-3">
-            <p className="text-xs text-[var(--slate)]">
-              現在のログインコード：
-              <span className="ml-1 font-medium text-[var(--ink)]">
-                {currentCode ?? "読み込み中..."}
-              </span>
-            </p>
-            <form onSubmit={handleSaveCode} className="mt-2 flex gap-2">
-              <input
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value)}
-                placeholder="新しいコード（半角英数字4〜16文字）"
-                className="flex-1 rounded-md border border-[var(--line)] p-2 text-sm uppercase outline-none focus:border-[var(--gold)]"
-              />
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-md bg-[var(--ink)] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
-              >
-                {saving ? "変更中..." : "変更する"}
-              </button>
-            </form>
-            {msg && (
-              <p
-                className={`mt-2 text-xs ${
-                  msg.type === "ok" ? "text-[var(--moss)]" : "text-[var(--berry)]"
-                }`}
-              >
-                {msg.text}
-              </p>
-            )}
-          </div>
-        )}
       </div>
     </header>
   );

@@ -1,4 +1,4 @@
--- 航路（Kouro）データベーススキーマ
+-- 航路（Kouro）データベーススキーマ（Supabase Auth連携版）
 -- フェーズ1: メンター⇄メンティーの縦の関係
 -- フェーズ2: 横のつながり（コミュニティ化）を見据え、
 --            check_ins.visibility と groups を最初から用意している。
@@ -12,6 +12,7 @@ create table profiles (
   role text not null check (role in ('mentor', 'mentee')),
   grade text, -- 例: 26卒（メンティーのみ）
   avatar_color text default '#C99A3D',
+  invite_code text unique, -- メンターが後輩を招待するためのコード
   created_at timestamptz not null default now()
 );
 
@@ -90,21 +91,35 @@ create table reactions (
   unique (check_in_id, profile_id, kind)
 );
 
--- Row Level Security（最低限の方針。要件が固まったら調整すること）
+-- ============ Row Level Security ============
 alter table profiles enable row level security;
+alter table mentor_mentee_relations enable row level security;
 alter table companies enable row level security;
 alter table check_ins enable row level security;
 alter table mentor_notes enable row level security;
 
--- 自分のプロフィールは自分で見れる
-create policy "profiles_self_select" on profiles
-  for select using (auth.uid() = id);
+-- 自分のプロフィールは自分で読み書きできる
+create policy "profiles_self_all" on profiles
+  for all using (auth.uid() = id) with check (auth.uid() = id);
 
--- メンティーは自分の企業データを読み書きできる
+-- 招待コードを持つメンターのプロフィールは、ログイン中の誰でも検索できる
+-- （メンティーが「招待コードを入力」する際にメンターを特定するため）
+create policy "profiles_lookup_by_invite" on profiles
+  for select using (invite_code is not null);
+
+-- メンター⇄メンティー関係：メンティー本人が自分の紐付けを作成できる
+create policy "relations_insert_by_mentee" on mentor_mentee_relations
+  for insert with check (auth.uid() = mentee_id);
+
+-- 関係の閲覧：メンター本人 or メンティー本人
+create policy "relations_select_own" on mentor_mentee_relations
+  for select using (auth.uid() = mentor_id or auth.uid() = mentee_id);
+
+-- 企業データ：メンティー本人が読み書き
 create policy "companies_owner" on companies
-  for all using (auth.uid() = mentee_id);
+  for all using (auth.uid() = mentee_id) with check (auth.uid() = mentee_id);
 
--- 担当メンターは自分の担当メンティーの企業データを閲覧できる
+-- 企業データ：担当メンターは閲覧のみ
 create policy "companies_mentor_read" on companies
   for select using (
     exists (
@@ -113,10 +128,11 @@ create policy "companies_mentor_read" on companies
     )
   );
 
--- チェックインも同様の方針
+-- チェックイン：メンティー本人が読み書き
 create policy "check_ins_owner" on check_ins
-  for all using (auth.uid() = mentee_id);
+  for all using (auth.uid() = mentee_id) with check (auth.uid() = mentee_id);
 
+-- チェックイン：担当メンターは閲覧のみ
 create policy "check_ins_mentor_read" on check_ins
   for select using (
     exists (
@@ -127,4 +143,4 @@ create policy "check_ins_mentor_read" on check_ins
 
 -- メンターノートは書いたメンター本人のみ閲覧可（メンティーには見せない）
 create policy "mentor_notes_owner" on mentor_notes
-  for all using (auth.uid() = mentor_id);
+  for all using (auth.uid() = mentor_id) with check (auth.uid() = mentor_id);

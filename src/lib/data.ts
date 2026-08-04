@@ -8,99 +8,77 @@ import type {
 } from "./types";
 
 export interface Profile {
-  id: string;
+  id: string; // auth.users.id と同じ
   name: string;
   role: "mentor" | "mentee";
   grade: string | null;
   avatar_color: string;
   invite_code: string | null;
-  login_code: string | null;
 }
+
+const AVATAR_COLORS = ["#C99A3D", "#5B7B5A", "#A64B4B", "#4C6B8A", "#8A5C9B"];
 
 function generateInviteCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-const AVATAR_COLORS = ["#C99A3D", "#5B7B5A", "#A64B4B", "#4C6B8A", "#8A5C9B"];
+// ---------- 認証 ----------
 
-function normalizeCode(code: string) {
-  return code.trim().toUpperCase().replace(/\s+/g, "");
-}
-
-function validateCode(code: string) {
-  if (code.length < 4 || code.length > 16) {
-    throw new Error("ログインコードは4〜16文字にしてください");
-  }
-  if (!/^[A-Z0-9]+$/.test(code)) {
-    throw new Error("ログインコードは半角英数字だけで入力してください");
-  }
-}
-
-function isUniqueViolation(err: unknown) {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: string }).code === "23505"
-  );
-}
-
-export async function createMentorProfile(
-  name: string,
-  grade: string,
-  desiredLoginCode?: string
-) {
+export async function sendMagicLink(email: string, redirectTo: string) {
   const supabase = createClient();
-  const invite_code = generateInviteCode();
-  const login_code = desiredLoginCode ? normalizeCode(desiredLoginCode) : generateInviteCode();
-  if (desiredLoginCode) validateCode(login_code);
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .insert({
-      name,
-      role: "mentor",
-      grade,
-      avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
-      invite_code,
-      login_code,
-    })
-    .select()
-    .single();
-  if (error) {
-    if (isUniqueViolation(error)) throw new Error("そのログインコードは既に使われています");
-    throw error;
-  }
-  return data as Profile;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo },
+  });
+  if (error) throw error;
 }
 
-export async function createMenteeProfile(
-  name: string,
-  grade: string,
-  mentorInviteCode?: string,
-  desiredLoginCode?: string
-) {
+export async function getCurrentUser() {
   const supabase = createClient();
-  const login_code = desiredLoginCode ? normalizeCode(desiredLoginCode) : generateInviteCode();
-  if (desiredLoginCode) validateCode(login_code);
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user;
+}
+
+export async function signOut() {
+  const supabase = createClient();
+  await supabase.auth.signOut();
+}
+
+// ---------- プロフィール ----------
+
+export async function getProfile(id: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as Profile | null;
+}
+
+export async function createProfile(params: {
+  userId: string;
+  name: string;
+  role: "mentor" | "mentee";
+  grade: string;
+  mentorInviteCode?: string;
+}) {
+  const supabase = createClient();
+  const { userId, name, role, grade, mentorInviteCode } = params;
 
   const { data: profile, error } = await supabase
     .from("profiles")
     .insert({
+      id: userId,
       name,
-      role: "mentee",
+      role,
       grade,
       avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
-      login_code,
+      invite_code: role === "mentor" ? generateInviteCode() : null,
     })
     .select()
     .single();
-  if (error) {
-    if (isUniqueViolation(error)) throw new Error("そのログインコードは既に使われています");
-    throw error;
-  }
+  if (error) throw error;
 
-  if (mentorInviteCode) {
+  if (role === "mentee" && mentorInviteCode) {
     const { data: mentor } = await supabase
       .from("profiles")
       .select("id")
@@ -111,49 +89,17 @@ export async function createMenteeProfile(
     if (mentor) {
       await supabase.from("mentor_mentee_relations").insert({
         mentor_id: mentor.id,
-        mentee_id: profile.id,
+        mentee_id: userId,
       });
     } else {
-      throw new Error("招待コードに一致するメンターが見つかりませんでした");
+      throw new Error("招待コードに一致するメンターが見つかりませんでした（プロフィールは作成されています）");
     }
   }
 
   return profile as Profile;
 }
 
-export async function updateLoginCode(profileId: string, newCode: string) {
-  const supabase = createClient();
-  const normalized = normalizeCode(newCode);
-  validateCode(normalized);
-  const { error } = await supabase
-    .from("profiles")
-    .update({ login_code: normalized })
-    .eq("id", profileId);
-  if (error) {
-    if (isUniqueViolation(error)) throw new Error("そのログインコードは既に使われています");
-    throw error;
-  }
-  return normalized;
-}
-
-export async function loginWithCode(code: string) {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("login_code", code.trim().toUpperCase())
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("ログインコードが見つかりませんでした");
-  return data as Profile;
-}
-
-export async function getProfile(id: string) {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
-  if (error) throw error;
-  return data as Profile;
-}
+// ---------- 企業・チェックイン ----------
 
 export async function getCompaniesForMentee(menteeId: string) {
   const supabase = createClient();
