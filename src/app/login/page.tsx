@@ -15,7 +15,9 @@ function LoginForm() {
   const params = useSearchParams();
   const role = params.get("role") === "mentor" ? "mentor" : "mentee";
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(
+    params.get("role") ? "signup" : "login"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -121,6 +123,18 @@ function LoginForm() {
         <h1 className="font-display mt-6 text-2xl text-[var(--ink)]">
           {mode === "login" ? "ログイン" : "新規登録"}
         </h1>
+        {mode === "signup" && (
+          <p className="mt-1 text-xs text-[var(--gold)]">
+            {role === "mentor" ? "メンターとして登録します" : "メンティーとして登録します"}
+            {" ・ "}
+            <Link
+              href={`/login?role=${role === "mentor" ? "mentee" : "mentor"}`}
+              className="underline"
+            >
+              {role === "mentor" ? "メンティーに変更" : "メンターに変更"}
+            </Link>
+          </p>
+        )}
 
         <div className="mt-5 flex gap-2">
           <button
