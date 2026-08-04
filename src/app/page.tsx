@@ -1,6 +1,38 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getCurrentUser, getProfile } from "@/lib/data";
 
 export default function Home() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUser();
+      if (!user) {
+        setChecking(false);
+        return;
+      }
+      const profile = await getProfile(user.id);
+      if (profile) {
+        router.replace(profile.role === "mentor" ? "/mentor" : "/mentee");
+      } else {
+        setChecking(false);
+      }
+    })();
+  }, [router]);
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--paper)]">
+        <p className="text-sm text-[var(--slate)]">読み込み中...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--paper)]">
       <header className="mx-auto max-w-5xl px-6 pt-16 pb-10 text-center">

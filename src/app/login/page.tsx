@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { sendMagicLink } from "@/lib/data";
+import { getCurrentUser, getProfile, sendMagicLink } from "@/lib/data";
 
 function LoginForm() {
+  const router = useRouter();
   const params = useSearchParams();
   const role = params.get("role") === "mentor" ? "mentor" : "mentee";
 
@@ -13,6 +14,23 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUser();
+      if (!user) {
+        setChecking(false);
+        return;
+      }
+      const profile = await getProfile(user.id);
+      if (profile) {
+        router.replace(profile.role === "mentor" ? "/mentor" : "/mentee");
+      } else {
+        setChecking(false);
+      }
+    })();
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,17 +48,23 @@ function LoginForm() {
     }
   }
 
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--paper)]">
+        <p className="text-sm text-[var(--slate)]">読み込み中...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--paper)] px-6 py-16">
       <div className="mx-auto max-w-md">
         <Link href="/" className="font-display text-lg text-[var(--ink)]">
           航路
         </Link>
-        <h1 className="font-display mt-6 text-2xl text-[var(--ink)]">
-          {role === "mentor" ? "メンターとしてはじめる" : "メンティーとしてはじめる"}
-        </h1>
+        <h1 className="font-display mt-6 text-2xl text-[var(--ink)]">ログイン</h1>
         <p className="mt-2 text-sm text-[var(--slate)]">
-          パスワードは不要です。メールアドレスにログイン用のリンクを送ります。
+          登録済みの方も初めての方も、メールアドレスにログイン用のリンクをお送りします。パスワードは不要です。
         </p>
 
         {sent ? (
