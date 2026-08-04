@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge, TagChip, TemperatureTag } from "@/components/badges";
-import { getMenteesForMentor, getProfile, type MenteeWithData } from "@/lib/data";
+import { getMenteesForMentor, getProfile, updateLoginCode, type MenteeWithData } from "@/lib/data";
 import { clearSession, loadSession, type Session } from "@/lib/session";
 import { TAG_LABEL, type StruggleTag } from "@/lib/types";
 
@@ -24,6 +24,11 @@ export default function MentorPage() {
   const [tagFilter, setTagFilter] = useState<StruggleTag | "all">("all");
   const [selectedMenteeId, setSelectedMenteeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentLoginCode, setCurrentLoginCode] = useState<string | null>(null);
+  const [newLoginCode, setNewLoginCode] = useState("");
+  const [codeMsg, setCodeMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [savingCode, setSavingCode] = useState(false);
 
   useEffect(() => {
     const s = loadSession();
@@ -43,12 +48,33 @@ export default function MentorPage() {
         getMenteesForMentor(mentorId),
       ]);
       setInviteCode(profile.invite_code);
+      setCurrentLoginCode(profile.login_code);
       setRowsData(mentees);
       setSelectedMenteeId((prev) => prev ?? mentees[0]?.profile.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "読み込みに失敗しました");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSaveLoginCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newLoginCode.trim() || !session) return;
+    setSavingCode(true);
+    setCodeMsg(null);
+    try {
+      const normalized = await updateLoginCode(session.id, newLoginCode);
+      setCurrentLoginCode(normalized);
+      setNewLoginCode("");
+      setCodeMsg({ type: "ok", text: "変更しました" });
+    } catch (err) {
+      setCodeMsg({
+        type: "error",
+        text: err instanceof Error ? err.message : "変更に失敗しました",
+      });
+    } finally {
+      setSavingCode(false);
     }
   }
 
@@ -103,25 +129,68 @@ export default function MentorPage() {
   return (
     <div className="min-h-screen bg-[var(--paper)] pb-24">
       <header className="border-b border-[var(--line)] bg-[var(--paper-raised)]/60 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="font-display text-lg text-[var(--ink)]">
-            航路
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-[var(--slate)]">メンター・ダッシュボード</span>
-            <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">
-              {session.name}
-            </span>
-            <button
-              onClick={() => {
-                clearSession();
-                router.push("/join");
-              }}
-              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
-            >
-              切り替える
-            </button>
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="font-display text-lg text-[var(--ink)]">
+              航路
+            </Link>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[var(--slate)]">メンター・ダッシュボード</span>
+              <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">
+                {session.name}
+              </span>
+              <button
+                onClick={() => setShowSettings((v) => !v)}
+                className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+              >
+                コード設定
+              </button>
+              <button
+                onClick={() => {
+                  clearSession();
+                  router.push("/join");
+                }}
+                className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+              >
+                切り替える
+              </button>
+            </div>
           </div>
+
+          {showSettings && (
+            <div className="mt-3 rounded-md border border-[var(--line)] bg-white p-3">
+              <p className="text-xs text-[var(--slate)]">
+                現在のログインコード：
+                <span className="ml-1 font-medium text-[var(--ink)]">
+                  {currentLoginCode ?? "読み込み中..."}
+                </span>
+              </p>
+              <form onSubmit={handleSaveLoginCode} className="mt-2 flex gap-2">
+                <input
+                  value={newLoginCode}
+                  onChange={(e) => setNewLoginCode(e.target.value)}
+                  placeholder="新しいコード（半角英数字4〜16文字）"
+                  className="flex-1 rounded-md border border-[var(--line)] p-2 text-sm uppercase outline-none focus:border-[var(--gold)]"
+                />
+                <button
+                  type="submit"
+                  disabled={savingCode}
+                  className="rounded-md bg-[var(--ink)] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+                >
+                  {savingCode ? "変更中..." : "変更する"}
+                </button>
+              </form>
+              {codeMsg && (
+                <p
+                  className={`mt-2 text-xs ${
+                    codeMsg.type === "ok" ? "text-[var(--moss)]" : "text-[var(--berry)]"
+                  }`}
+                >
+                  {codeMsg.text}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </header>
 

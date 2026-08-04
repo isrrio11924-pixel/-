@@ -22,6 +22,7 @@ function JoinForm() {
   const [grade, setGrade] = useState("26卒");
   const [inviteCode, setInviteCode] = useState("");
   const [loginCode, setLoginCode] = useState("");
+  const [customLoginCode, setCustomLoginCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdProfile, setCreatedProfile] = useState<Profile | null>(null);
@@ -39,8 +40,13 @@ function JoinForm() {
     try {
       const profile =
         role === "mentor"
-          ? await createMentorProfile(name.trim(), grade.trim())
-          : await createMenteeProfile(name.trim(), grade.trim(), inviteCode.trim() || undefined);
+          ? await createMentorProfile(name.trim(), grade.trim(), customLoginCode.trim() || undefined)
+          : await createMenteeProfile(
+              name.trim(),
+              grade.trim(),
+              inviteCode.trim() || undefined,
+              customLoginCode.trim() || undefined
+            );
       // すぐには遷移せず、ログインコードを見せる
       setCreatedProfile(profile);
     } catch (err) {
@@ -235,6 +241,21 @@ function JoinForm() {
                 </span>
               </label>
             )}
+
+            <label className="block">
+              <span className="text-xs font-medium text-[var(--ink-soft)]">
+                ログインコード（任意・自分で決められます）
+              </span>
+              <input
+                value={customLoginCode}
+                onChange={(e) => setCustomLoginCode(e.target.value)}
+                placeholder="空欄なら自動で発行されます"
+                className="mt-1 w-full rounded-md border border-[var(--line)] bg-white p-2.5 text-sm uppercase outline-none focus:border-[var(--gold)]"
+              />
+              <span className="mt-1 block text-[11px] text-[var(--slate)]">
+                半角英数字4〜16文字。次回このコードでログインできます。
+              </span>
+            </label>
 
             {error && <p className="text-sm text-[var(--berry)]">{error}</p>}
 

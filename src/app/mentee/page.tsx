@@ -9,7 +9,9 @@ import {
   addCompany,
   getCheckInsForMentee,
   getCompaniesForMentee,
+  getProfile,
   updateCompany,
+  updateLoginCode,
 } from "@/lib/data";
 import { clearSession, loadSession, type Session } from "@/lib/session";
 import {
@@ -137,7 +139,7 @@ export default function MenteePage() {
 
   return (
     <div className="min-h-screen bg-[var(--paper)] pb-24">
-      <TopBar name={session.name} role="mentee" />
+      <TopBar profileId={session.id} name={session.name} role="mentee" />
 
       {error && (
         <div className="mx-auto mt-4 max-w-5xl px-6">
@@ -338,29 +340,117 @@ export default function MenteePage() {
   );
 }
 
-function TopBar({ name, role }: { name: string; role: "mentee" | "mentor" }) {
+function TopBar({
+  profileId,
+  name,
+  role,
+}: {
+  profileId: string;
+  name: string;
+  role: "mentee" | "mentor";
+}) {
   const router = useRouter();
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentCode, setCurrentCode] = useState<string | null>(null);
+  const [newCode, setNewCode] = useState("");
+  const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function openSettings() {
+    setShowSettings((v) => !v);
+    if (!currentCode) {
+      try {
+        const p = await getProfile(profileId);
+        setCurrentCode(p.login_code);
+      } catch {
+        // noop
+      }
+    }
+  }
+
+  async function handleSaveCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCode.trim()) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      const normalized = await updateLoginCode(profileId, newCode);
+      setCurrentCode(normalized);
+      setNewCode("");
+      setMsg({ type: "ok", text: "変更しました" });
+    } catch (err) {
+      setMsg({ type: "error", text: err instanceof Error ? err.message : "変更に失敗しました" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <header className="border-b border-[var(--line)] bg-[var(--paper-raised)]/60 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <Link href="/" className="font-display text-lg text-[var(--ink)]">
-          航路
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-[var(--slate)]">
-            {role === "mentee" ? "メンティー" : "メンター"}
-          </span>
-          <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">{name}</span>
-          <button
-            onClick={() => {
-              clearSession();
-              router.push("/join");
-            }}
-            className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
-          >
-            切り替える
-          </button>
+      <div className="mx-auto max-w-5xl px-6 py-4">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="font-display text-lg text-[var(--ink)]">
+            航路
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[var(--slate)]">
+              {role === "mentee" ? "メンティー" : "メンター"}
+            </span>
+            <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">
+              {name}
+            </span>
+            <button
+              onClick={openSettings}
+              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+            >
+              コード設定
+            </button>
+            <button
+              onClick={() => {
+                clearSession();
+                router.push("/join");
+              }}
+              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+            >
+              切り替える
+            </button>
+          </div>
         </div>
+
+        {showSettings && (
+          <div className="mt-3 rounded-md border border-[var(--line)] bg-white p-3">
+            <p className="text-xs text-[var(--slate)]">
+              現在のログインコード：
+              <span className="ml-1 font-medium text-[var(--ink)]">
+                {currentCode ?? "読み込み中..."}
+              </span>
+            </p>
+            <form onSubmit={handleSaveCode} className="mt-2 flex gap-2">
+              <input
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value)}
+                placeholder="新しいコード（半角英数字4〜16文字）"
+                className="flex-1 rounded-md border border-[var(--line)] p-2 text-sm uppercase outline-none focus:border-[var(--gold)]"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-md bg-[var(--ink)] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+              >
+                {saving ? "変更中..." : "変更する"}
+              </button>
+            </form>
+            {msg && (
+              <p
+                className={`mt-2 text-xs ${
+                  msg.type === "ok" ? "text-[var(--moss)]" : "text-[var(--berry)]"
+                }`}
+              >
+                {msg.text}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

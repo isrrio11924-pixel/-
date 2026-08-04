@@ -23,10 +23,38 @@ function generateInviteCode() {
 
 const AVATAR_COLORS = ["#C99A3D", "#5B7B5A", "#A64B4B", "#4C6B8A", "#8A5C9B"];
 
-export async function createMentorProfile(name: string, grade: string) {
+function normalizeCode(code: string) {
+  return code.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function validateCode(code: string) {
+  if (code.length < 4 || code.length > 16) {
+    throw new Error("ログインコードは4〜16文字にしてください");
+  }
+  if (!/^[A-Z0-9]+$/.test(code)) {
+    throw new Error("ログインコードは半角英数字だけで入力してください");
+  }
+}
+
+function isUniqueViolation(err: unknown) {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: string }).code === "23505"
+  );
+}
+
+export async function createMentorProfile(
+  name: string,
+  grade: string,
+  desiredLoginCode?: string
+) {
   const supabase = createClient();
   const invite_code = generateInviteCode();
-  const login_code = generateInviteCode();
+  const login_code = desiredLoginCode ? normalizeCode(desiredLoginCode) : generateInviteCode();
+  if (desiredLoginCode) validateCode(login_code);
+
   const { data, error } = await supabase
     .from("profiles")
     .insert({
@@ -39,17 +67,23 @@ export async function createMentorProfile(name: string, grade: string) {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (isUniqueViolation(error)) throw new Error("そのログインコードは既に使われています");
+    throw error;
+  }
   return data as Profile;
 }
 
 export async function createMenteeProfile(
   name: string,
   grade: string,
-  mentorInviteCode?: string
+  mentorInviteCode?: string,
+  desiredLoginCode?: string
 ) {
   const supabase = createClient();
-  const login_code = generateInviteCode();
+  const login_code = desiredLoginCode ? normalizeCode(desiredLoginCode) : generateInviteCode();
+  if (desiredLoginCode) validateCode(login_code);
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .insert({
@@ -61,7 +95,10 @@ export async function createMenteeProfile(
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (isUniqueViolation(error)) throw new Error("そのログインコードは既に使われています");
+    throw error;
+  }
 
   if (mentorInviteCode) {
     const { data: mentor } = await supabase
@@ -82,6 +119,21 @@ export async function createMenteeProfile(
   }
 
   return profile as Profile;
+}
+
+export async function updateLoginCode(profileId: string, newCode: string) {
+  const supabase = createClient();
+  const normalized = normalizeCode(newCode);
+  validateCode(normalized);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ login_code: normalized })
+    .eq("id", profileId);
+  if (error) {
+    if (isUniqueViolation(error)) throw new Error("そのログインコードは既に使われています");
+    throw error;
+  }
+  return normalized;
 }
 
 export async function loginWithCode(code: string) {
