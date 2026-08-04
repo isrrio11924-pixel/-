@@ -11,7 +11,7 @@ import {
   getCompaniesForMentee,
   updateCompany,
 } from "@/lib/data";
-import { loadSession, type Session } from "@/lib/session";
+import { clearSession, loadSession, type Session } from "@/lib/session";
 import {
   STATUS_LABEL,
   TAG_LABEL,
@@ -339,6 +339,7 @@ export default function MenteePage() {
 }
 
 function TopBar({ name, role }: { name: string; role: "mentee" | "mentor" }) {
+  const router = useRouter();
   return (
     <header className="border-b border-[var(--line)] bg-[var(--paper-raised)]/60 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
@@ -350,6 +351,15 @@ function TopBar({ name, role }: { name: string; role: "mentee" | "mentor" }) {
             {role === "mentee" ? "メンティー" : "メンター"}
           </span>
           <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">{name}</span>
+          <button
+            onClick={() => {
+              clearSession();
+              router.push("/join");
+            }}
+            className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+          >
+            切り替える
+          </button>
         </div>
       </div>
     </header>

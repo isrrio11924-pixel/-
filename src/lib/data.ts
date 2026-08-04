@@ -14,6 +14,7 @@ export interface Profile {
   grade: string | null;
   avatar_color: string;
   invite_code: string | null;
+  login_code: string | null;
 }
 
 function generateInviteCode() {
@@ -25,6 +26,7 @@ const AVATAR_COLORS = ["#C99A3D", "#5B7B5A", "#A64B4B", "#4C6B8A", "#8A5C9B"];
 export async function createMentorProfile(name: string, grade: string) {
   const supabase = createClient();
   const invite_code = generateInviteCode();
+  const login_code = generateInviteCode();
   const { data, error } = await supabase
     .from("profiles")
     .insert({
@@ -33,6 +35,7 @@ export async function createMentorProfile(name: string, grade: string) {
       grade,
       avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
       invite_code,
+      login_code,
     })
     .select()
     .single();
@@ -46,6 +49,7 @@ export async function createMenteeProfile(
   mentorInviteCode?: string
 ) {
   const supabase = createClient();
+  const login_code = generateInviteCode();
   const { data: profile, error } = await supabase
     .from("profiles")
     .insert({
@@ -53,6 +57,7 @@ export async function createMenteeProfile(
       role: "mentee",
       grade,
       avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+      login_code,
     })
     .select()
     .single();
@@ -77,6 +82,18 @@ export async function createMenteeProfile(
   }
 
   return profile as Profile;
+}
+
+export async function loginWithCode(code: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("login_code", code.trim().toUpperCase())
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("ログインコードが見つかりませんでした");
+  return data as Profile;
 }
 
 export async function getProfile(id: string) {

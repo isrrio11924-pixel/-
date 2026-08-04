@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge, TagChip, TemperatureTag } from "@/components/badges";
 import { getMenteesForMentor, getProfile, type MenteeWithData } from "@/lib/data";
-import { loadSession, type Session } from "@/lib/session";
+import { clearSession, loadSession, type Session } from "@/lib/session";
 import { TAG_LABEL, type StruggleTag } from "@/lib/types";
 
 const STALE_DAYS = 7;
@@ -112,6 +112,15 @@ export default function MentorPage() {
             <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">
               {session.name}
             </span>
+            <button
+              onClick={() => {
+                clearSession();
+                router.push("/join");
+              }}
+              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+            >
+              切り替える
+            </button>
           </div>
         </div>
       </header>
