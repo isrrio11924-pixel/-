@@ -159,7 +159,8 @@ export async function addCheckIn(
   menteeId: string,
   note: string,
   tags: StruggleTag[],
-  companyId?: string
+  companyId?: string,
+  visibility: "mentor_only" | "public" = "mentor_only"
 ) {
   const supabase = createClient();
   const { error } = await supabase.from("check_ins").insert({
@@ -167,7 +168,107 @@ export async function addCheckIn(
     company_id: companyId ?? null,
     note,
     tags,
+    visibility,
   });
+  if (error) throw error;
+}
+
+// ---------- 公開フィード（フェーズ2） ----------
+
+export interface FeedItem {
+  checkIn: CheckIn;
+  author: Profile;
+  companyName: string | null;
+  cheerCount: number;
+  iCheered: boolean;
+  comments: FeedComment[];
+}
+
+export interface FeedComment {
+  id: string;
+  checkInId: string;
+  profileId: string;
+  authorName: string;
+  authorAvatarColor: string;
+  body: string;
+  createdAt: string;
+}
+
+export async function getPublicFeed(currentUserId: string): Promise<FeedItem[]> {
+  const supabase = createClient();
+  const { data: checkInRows, error } = await supabase
+    .from("check_ins")
+    .select("*, profiles!check_ins_mentee_id_fkey(*), companies(name)")
+    .eq("visibility", "public")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+
+  const checkInIds = (checkInRows ?? []).map((r) => r.id as string);
+  if (checkInIds.length === 0) return [];
+
+  const [{ data: reactionRows }, { data: commentRows }] = await Promise.all([
+    supabase.from("reactions").select("*").in("check_in_id", checkInIds),
+    supabase
+      .from("comments")
+      .select("*, profiles(name, avatar_color)")
+      .in("check_in_id", checkInIds)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  return (checkInRows ?? []).map((row) => {
+    const author = (row as unknown as { profiles: Profile }).profiles;
+    const companyName = (row as unknown as { companies: { name: string } | null }).companies?.name ?? null;
+    const relatedReactions = (reactionRows ?? []).filter((r) => r.check_in_id === row.id);
+    const relatedComments = (commentRows ?? [])
+      .filter((c) => c.check_in_id === row.id)
+      .map((c) => {
+        const p = (c as unknown as { profiles: { name: string; avatar_color: string } }).profiles;
+        return {
+          id: c.id as string,
+          checkInId: c.check_in_id as string,
+          profileId: c.profile_id as string,
+          authorName: p?.name ?? "不明",
+          authorAvatarColor: p?.avatar_color ?? "#C99A3D",
+          body: c.body as string,
+          createdAt: c.created_at as string,
+        };
+      });
+
+    return {
+      checkIn: rowToCheckIn(row),
+      author,
+      companyName,
+      cheerCount: relatedReactions.length,
+      iCheered: relatedReactions.some((r) => r.profile_id === currentUserId),
+      comments: relatedComments,
+    };
+  });
+}
+
+export async function toggleCheer(checkInId: string, profileId: string, currentlyCheered: boolean) {
+  const supabase = createClient();
+  if (currentlyCheered) {
+    const { error } = await supabase
+      .from("reactions")
+      .delete()
+      .eq("check_in_id", checkInId)
+      .eq("profile_id", profileId)
+      .eq("kind", "cheer");
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("reactions")
+      .insert({ check_in_id: checkInId, profile_id: profileId, kind: "cheer" });
+    if (error) throw error;
+  }
+}
+
+export async function addComment(checkInId: string, profileId: string, body: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("comments")
+    .insert({ check_in_id: checkInId, profile_id: profileId, body });
   if (error) throw error;
 }
 

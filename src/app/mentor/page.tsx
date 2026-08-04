@@ -121,6 +121,9 @@ export default function MentorPage() {
           </Link>
           <div className="flex items-center gap-3">
             <span className="text-xs text-[var(--slate)]">メンター・ダッシュボード</span>
+            <Link href="/feed" className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]">
+              みんなの記録
+            </Link>
             <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">
               {profile.name}
             </span>

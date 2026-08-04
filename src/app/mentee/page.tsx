@@ -56,6 +56,7 @@ export default function MenteePage() {
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [selectedTags, setSelectedTags] = useState<StruggleTag[]>([]);
+  const [shareWithEveryone, setShareWithEveryone] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
@@ -122,9 +123,16 @@ export default function MenteePage() {
 
   async function handleSubmit() {
     if (!note.trim() || !profile) return;
-    await addCheckIn(profile.id, note.trim(), selectedTags, activeCompany?.id);
+    await addCheckIn(
+      profile.id,
+      note.trim(),
+      selectedTags,
+      activeCompany?.id,
+      shareWithEveryone ? "public" : "mentor_only"
+    );
     setNote("");
     setSelectedTags([]);
+    setShareWithEveryone(false);
     setSaved(true);
     refresh(profile.id);
     setTimeout(() => setSaved(false), 2200);
@@ -313,6 +321,15 @@ export default function MenteePage() {
                 >
                   {saved ? "記録しました ✓" : "航海日誌に記録する"}
                 </button>
+                <label className="mt-3 flex items-center gap-2 text-xs text-[var(--slate)]">
+                  <input
+                    type="checkbox"
+                    checked={shareWithEveryone}
+                    onChange={(e) => setShareWithEveryone(e.target.checked)}
+                    className="h-3.5 w-3.5"
+                  />
+                  この記録を「みんなの記録」にも共有する（名前が表示されます）
+                </label>
               </div>
             </>
           ) : (
@@ -362,6 +379,9 @@ function TopBar({ name, role }: { name: string; role: "mentee" | "mentor" }) {
           <span className="text-xs text-[var(--slate)]">
             {role === "mentee" ? "メンティー" : "メンター"}
           </span>
+          <Link href="/feed" className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]">
+            みんなの記録
+          </Link>
           <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">{name}</span>
           <button
             onClick={async () => {
