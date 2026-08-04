@@ -82,6 +82,16 @@ export default function Home() {
             </span>
           </Link>
         </div>
+
+        <p className="mt-10 text-center text-xs text-[var(--slate)]">
+          <Link href="/terms" className="underline">
+            利用規約
+          </Link>
+          {" ・ "}
+          <Link href="/privacy" className="underline">
+            プライバシーポリシー
+          </Link>
+        </p>
       </div>
     </div>
   );

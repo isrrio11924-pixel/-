@@ -199,6 +199,20 @@ function LoginForm() {
           >
             {loading ? "処理中..." : mode === "login" ? "ログイン" : "登録する"}
           </button>
+
+          {mode === "signup" && (
+            <p className="text-center text-[11px] text-[var(--slate)]">
+              登録すると
+              <Link href="/terms" className="underline">
+                利用規約
+              </Link>
+              と
+              <Link href="/privacy" className="underline">
+                プライバシーポリシー
+              </Link>
+              に同意したものとみなされます。
+            </p>
+          )}
         </form>
       </div>
     </div>
