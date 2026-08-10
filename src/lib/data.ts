@@ -108,6 +108,61 @@ export async function createProfile(params: {
   return profile as Profile;
 }
 
+// ---------- メンターとの紐付け ----------
+
+export interface LinkedMentor {
+  relationId: string;
+  mentor: Profile;
+}
+
+export async function getMentorsForMentee(menteeId: string): Promise<LinkedMentor[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("mentor_mentee_relations")
+    .select("id, mentor_id, profiles!mentor_mentee_relations_mentor_id_fkey(*)")
+    .eq("mentee_id", menteeId);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    relationId: row.id as string,
+    mentor: (row as unknown as { profiles: Profile }).profiles,
+  }));
+}
+
+export async function linkMentorByInviteCode(menteeId: string, inviteCode: string) {
+  const supabase = createClient();
+  const { data: mentor, error: lookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("invite_code", inviteCode.trim().toUpperCase())
+    .eq("role", "mentor")
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!mentor) throw new Error("招待コードに一致するメンターが見つかりませんでした");
+
+  const { error } = await supabase
+    .from("mentor_mentee_relations")
+    .insert({ mentor_id: mentor.id, mentee_id: menteeId });
+  if (error) {
+    if (isUniqueViolation(error)) throw new Error("すでにそのメンターと繋がっています");
+    throw error;
+  }
+}
+
+export async function unlinkMentor(relationId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from("mentor_mentee_relations").delete().eq("id", relationId);
+  if (error) throw error;
+}
+
+function isUniqueViolation(err: unknown) {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: string }).code === "23505"
+  );
+}
+
 // ---------- 企業・チェックイン ----------
 
 export async function getCompaniesForMentee(menteeId: string) {

@@ -124,6 +124,10 @@ create policy "relations_insert_by_mentee" on mentor_mentee_relations
 create policy "relations_select_own" on mentor_mentee_relations
   for select using (auth.uid() = mentor_id or auth.uid() = mentee_id);
 
+-- 関係の解除：メンター本人 or メンティー本人
+create policy "relations_delete_own" on mentor_mentee_relations
+  for delete using (auth.uid() = mentor_id or auth.uid() = mentee_id);
+
 -- 企業データ：メンティー本人が読み書き
 create policy "companies_owner" on companies
   for all using (auth.uid() = mentee_id) with check (auth.uid() = mentee_id);

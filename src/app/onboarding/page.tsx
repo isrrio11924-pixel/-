@@ -84,7 +84,7 @@ function OnboardingForm() {
                     : "border-[var(--line)] text-[var(--ink-soft)]"
                 }`}
               >
-                メンティー
+                エンター
               </button>
               <button
                 type="button"

@@ -10,9 +10,13 @@ import {
   getCheckInsForMentee,
   getCompaniesForMentee,
   getCurrentUser,
+  getMentorsForMentee,
   getProfile,
+  linkMentorByInviteCode,
   signOut,
+  unlinkMentor,
   updateCompany,
+  type LinkedMentor,
   type Profile,
 } from "@/lib/data";
 import {
@@ -62,6 +66,11 @@ export default function MenteePage() {
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newCompanyIndustry, setNewCompanyIndustry] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [mentors, setMentors] = useState<LinkedMentor[]>([]);
+  const [showMentorPanel, setShowMentorPanel] = useState(false);
+  const [newInviteCode, setNewInviteCode] = useState("");
+  const [mentorMsg, setMentorMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -87,18 +96,46 @@ export default function MenteePage() {
   async function refresh(menteeId: string) {
     setLoading(true);
     try {
-      const [c, ci] = await Promise.all([
+      const [c, ci, m] = await Promise.all([
         getCompaniesForMentee(menteeId),
         getCheckInsForMentee(menteeId),
+        getMentorsForMentee(menteeId),
       ]);
       setCompanies(c);
       setMyCheckIns(ci);
+      setMentors(m);
       setActiveCompanyId((prev) => prev ?? c[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "読み込みに失敗しました");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleLinkMentor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newInviteCode.trim() || !profile) return;
+    setLinking(true);
+    setMentorMsg(null);
+    try {
+      await linkMentorByInviteCode(profile.id, newInviteCode);
+      setNewInviteCode("");
+      setMentorMsg({ type: "ok", text: "メンターと繋がりました" });
+      refresh(profile.id);
+    } catch (err) {
+      setMentorMsg({
+        type: "error",
+        text: err instanceof Error ? err.message : "追加に失敗しました",
+      });
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  async function handleUnlinkMentor(relationId: string) {
+    if (!profile) return;
+    await unlinkMentor(relationId);
+    refresh(profile.id);
   }
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId) ?? null;
@@ -159,7 +196,20 @@ export default function MenteePage() {
 
   return (
     <div className="min-h-screen bg-[var(--paper)] pb-24">
-      <TopBar name={profile.name} role="mentee" />
+      <TopBar
+        profileId={profile.id}
+        name={profile.name}
+        role="mentee"
+        mentors={mentors}
+        showMentorPanel={showMentorPanel}
+        setShowMentorPanel={setShowMentorPanel}
+        newInviteCode={newInviteCode}
+        setNewInviteCode={setNewInviteCode}
+        mentorMsg={mentorMsg}
+        linking={linking}
+        onLinkMentor={handleLinkMentor}
+        onUnlinkMentor={handleUnlinkMentor}
+      />
 
       {error && (
         <div className="mx-auto mt-4 max-w-5xl px-6">
@@ -367,32 +417,123 @@ export default function MenteePage() {
   );
 }
 
-function TopBar({ name, role }: { name: string; role: "mentee" | "mentor" }) {
+function TopBar({
+  name,
+  role,
+  mentors,
+  showMentorPanel,
+  setShowMentorPanel,
+  newInviteCode,
+  setNewInviteCode,
+  mentorMsg,
+  linking,
+  onLinkMentor,
+  onUnlinkMentor,
+}: {
+  profileId: string;
+  name: string;
+  role: "mentee" | "mentor";
+  mentors: LinkedMentor[];
+  showMentorPanel: boolean;
+  setShowMentorPanel: (v: boolean | ((prev: boolean) => boolean)) => void;
+  newInviteCode: string;
+  setNewInviteCode: (v: string) => void;
+  mentorMsg: { type: "ok" | "error"; text: string } | null;
+  linking: boolean;
+  onLinkMentor: (e: React.FormEvent) => void;
+  onUnlinkMentor: (relationId: string) => void;
+}) {
   const router = useRouter();
   return (
     <header className="border-b border-[var(--line)] bg-[var(--paper-raised)]/60 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <Link href="/" className="font-display text-lg text-[var(--ink)]">
-          航路
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-[var(--slate)]">
-            {role === "mentee" ? "メンティー" : "メンター"}
-          </span>
-          <Link href="/feed" className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]">
-            みんなの記録
+      <div className="mx-auto max-w-5xl px-6 py-4">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="font-display text-lg text-[var(--ink)]">
+            航路
           </Link>
-          <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">{name}</span>
-          <button
-            onClick={async () => {
-              await signOut();
-              router.push("/login");
-            }}
-            className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
-          >
-            ログアウト
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[var(--slate)]">
+              {role === "mentee" ? "エンター" : "メンター"}
+            </span>
+            <Link href="/feed" className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]">
+              みんなの記録
+            </Link>
+            <button
+              onClick={() => setShowMentorPanel((v) => !v)}
+              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+            >
+              メンター管理
+            </button>
+            <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-xs text-white">{name}</span>
+            <button
+              onClick={async () => {
+                await signOut();
+                router.push("/login");
+              }}
+              className="text-xs text-[var(--slate)] underline hover:text-[var(--ink)]"
+            >
+              ログアウト
+            </button>
+          </div>
         </div>
+
+        {showMentorPanel && (
+          <div className="mt-3 rounded-md border border-[var(--line)] bg-white p-3">
+            <p className="text-xs font-medium text-[var(--ink-soft)]">つながっているメンター</p>
+            <ul className="mt-2 space-y-1.5">
+              {mentors.map((m) => (
+                <li
+                  key={m.relationId}
+                  className="flex items-center justify-between rounded-md border border-[var(--line)] bg-[var(--paper)] px-3 py-1.5"
+                >
+                  <span className="flex items-center gap-2 text-sm text-[var(--ink)]">
+                    <span
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                      style={{ backgroundColor: m.mentor.avatar_color }}
+                    >
+                      {m.mentor.name[0]}
+                    </span>
+                    {m.mentor.name}
+                  </span>
+                  <button
+                    onClick={() => onUnlinkMentor(m.relationId)}
+                    className="text-[11px] text-[var(--berry)] underline"
+                  >
+                    解除
+                  </button>
+                </li>
+              ))}
+              {mentors.length === 0 && (
+                <p className="text-xs text-[var(--slate)]">まだメンターと繋がっていません。</p>
+              )}
+            </ul>
+
+            <form onSubmit={onLinkMentor} className="mt-3 flex gap-2">
+              <input
+                value={newInviteCode}
+                onChange={(e) => setNewInviteCode(e.target.value)}
+                placeholder="メンターの招待コードを入力"
+                className="flex-1 rounded-md border border-[var(--line)] p-2 text-sm uppercase outline-none focus:border-[var(--gold)]"
+              />
+              <button
+                type="submit"
+                disabled={linking}
+                className="rounded-md bg-[var(--ink)] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+              >
+                {linking ? "追加中..." : "追加する"}
+              </button>
+            </form>
+            {mentorMsg && (
+              <p
+                className={`mt-2 text-xs ${
+                  mentorMsg.type === "ok" ? "text-[var(--moss)]" : "text-[var(--berry)]"
+                }`}
+              >
+                {mentorMsg.text}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

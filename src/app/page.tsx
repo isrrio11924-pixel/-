@@ -62,7 +62,7 @@ export default function Home() {
               30秒の記録が、あなたの航海日誌になる。
             </p>
             <span className="mt-6 inline-flex items-center text-sm font-medium text-[var(--ink)] group-hover:text-[var(--gold)]">
-              メンティーとして開く →
+              エンターとして開く →
             </span>
           </Link>
 

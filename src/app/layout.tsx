@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "航路 | メンター・メンティー就活支援",
+  title: "航路 | メンター・エンター就活支援",
   description:
-    "就活生の航海日誌。メンティーが記録し、メンターが見守る、就活支援アプリ。",
+    "就活生の航海日誌。エンターが記録し、メンターが見守る、就活支援アプリ。",
 };
 
 export default function RootLayout({

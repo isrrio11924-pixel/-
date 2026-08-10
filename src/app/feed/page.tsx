@@ -131,7 +131,7 @@ export default function FeedPage() {
                 <div>
                   <p className="text-sm font-medium text-[var(--ink)]">{item.author.name}</p>
                   <p className="text-[11px] text-[var(--slate)]">
-                    {item.author.role === "mentor" ? "メンター" : "メンティー"}
+                    {item.author.role === "mentor" ? "メンター" : "エンター"}
                     {item.companyName ? ` ・ ${item.companyName}` : ""}
                     {" ・ "}
                     {formatDateTime(item.checkIn.createdAt)}

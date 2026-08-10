@@ -163,7 +163,7 @@ export default function MentorPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl text-[var(--ink)]">担当メンティーの航路</h1>
+            <h1 className="font-display text-2xl text-[var(--ink)]">担当エンターの航路</h1>
             <p className="mt-1 text-xs text-[var(--slate)]">
               要フォローの後輩を上位に表示しています
             </p>
@@ -305,7 +305,7 @@ export default function MentorPage() {
                 </ul>
               </>
             ) : (
-              <p className="text-sm text-[var(--slate)]">左からメンティーを選んでください。</p>
+              <p className="text-sm text-[var(--slate)]">左からエンターを選んでください。</p>
             )}
           </section>
         </div>

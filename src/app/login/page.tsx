@@ -125,13 +125,13 @@ function LoginForm() {
         </h1>
         {mode === "signup" && (
           <p className="mt-1 text-xs text-[var(--gold)]">
-            {role === "mentor" ? "メンターとして登録します" : "メンティーとして登録します"}
+            {role === "mentor" ? "メンターとして登録します" : "エンターとして登録します"}
             {" ・ "}
             <Link
               href={`/login?role=${role === "mentor" ? "mentee" : "mentor"}`}
               className="underline"
             >
-              {role === "mentor" ? "メンティーに変更" : "メンターに変更"}
+              {role === "mentor" ? "エンターに変更" : "メンターに変更"}
             </Link>
           </p>
         )}
