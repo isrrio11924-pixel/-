@@ -122,10 +122,12 @@ export async function getMentorsForMentee(menteeId: string): Promise<LinkedMento
     .select("id, mentor_id, profiles!mentor_mentee_relations_mentor_id_fkey(*)")
     .eq("mentee_id", menteeId);
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    relationId: row.id as string,
-    mentor: (row as unknown as { profiles: Profile }).profiles,
-  }));
+  return (data ?? [])
+    .filter((row) => (row as unknown as { profiles: Profile | null }).profiles !== null)
+    .map((row) => ({
+      relationId: row.id as string,
+      mentor: (row as unknown as { profiles: Profile }).profiles,
+    }));
 }
 
 export async function linkMentorByInviteCode(menteeId: string, inviteCode: string) {
@@ -349,18 +351,20 @@ export async function getMenteesForMentor(mentorId: string): Promise<MenteeWithD
     supabase.from("check_ins").select("*").in("mentee_id", menteeIds),
   ]);
 
-  return (relations ?? []).map((r) => {
-    const profile = (r as unknown as { profiles: Profile }).profiles;
-    return {
-      profile,
-      companies: (companyRows ?? [])
-        .filter((c) => c.mentee_id === r.mentee_id)
-        .map(rowToCompany),
-      checkIns: (checkInRows ?? [])
-        .filter((c) => c.mentee_id === r.mentee_id)
-        .map(rowToCheckIn),
-    };
-  });
+  return (relations ?? [])
+    .filter((r) => (r as unknown as { profiles: Profile | null }).profiles !== null)
+    .map((r) => {
+      const profile = (r as unknown as { profiles: Profile }).profiles;
+      return {
+        profile,
+        companies: (companyRows ?? [])
+          .filter((c) => c.mentee_id === r.mentee_id)
+          .map(rowToCompany),
+        checkIns: (checkInRows ?? [])
+          .filter((c) => c.mentee_id === r.mentee_id)
+          .map(rowToCheckIn),
+      };
+    });
 }
 
 function rowToCompany(row: Record<string, unknown>): Company {
