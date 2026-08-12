@@ -22,14 +22,16 @@ import {
 import {
   STATUS_LABEL,
   TAG_LABEL,
+  isPresetStatus,
   type CheckIn,
   type Company,
+  type PresetStatus,
   type SelectionStatus,
   type StruggleTag,
   type Temperature,
 } from "@/lib/types";
 
-const STATUS_OPTIONS: SelectionStatus[] = [
+const STATUS_OPTIONS: PresetStatus[] = [
   "researching",
   "es_writing",
   "es_submitted",
@@ -59,6 +61,7 @@ export default function MenteePage() {
   const [myCheckIns, setMyCheckIns] = useState<CheckIn[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [customStatus, setCustomStatus] = useState("");
   const [selectedTags, setSelectedTags] = useState<StruggleTag[]>([]);
   const [shareWithEveryone, setShareWithEveryone] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -318,6 +321,33 @@ export default function MenteePage() {
                     </button>
                   ))}
                 </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!customStatus.trim()) return;
+                    handleStatusChange(customStatus.trim());
+                    setCustomStatus("");
+                  }}
+                  className="mt-2 flex gap-2"
+                >
+                  <input
+                    value={customStatus}
+                    onChange={(e) => setCustomStatus(e.target.value)}
+                    placeholder="自由入力（例：インターン参加予定、書類選考結果待ち）"
+                    className="flex-1 rounded-md border border-[var(--line)] p-2 text-xs outline-none focus:border-[var(--gold)]"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink-soft)] hover:border-[var(--gold)]"
+                  >
+                    設定
+                  </button>
+                </form>
+                {!isPresetStatus(activeCompany.status) && (
+                  <p className="mt-1 text-[11px] text-[var(--gold)]">
+                    現在のステータス（自由入力）：{activeCompany.status}
+                  </p>
+                )}
               </div>
 
               <div className="mt-5">

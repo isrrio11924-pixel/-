@@ -2,7 +2,8 @@
 // 将来のフェーズ2（横のつながり・コミュニティ化）を見据え、
 // CheckIn には visibility（公開範囲）を最初から持たせている。
 
-export type SelectionStatus =
+// 選考ステータス：あらかじめ用意した候補に加えて、自由入力の文字列も許容する
+export type PresetStatus =
   | "researching" // 企業研究中
   | "es_writing" // ES作成中
   | "es_submitted" // ES提出済み
@@ -13,6 +14,8 @@ export type SelectionStatus =
   | "offer" // 内定
   | "declined" // 辞退
   | "rejected"; // 不採用
+
+export type SelectionStatus = PresetStatus | (string & {});
 
 export type Temperature = "good" | "unsure" | "urgent";
 // good = 順調 / unsure = やや不安 / urgent = かなり焦ってる
@@ -63,7 +66,7 @@ export interface Mentee {
   avatarColor: string;
 }
 
-export const STATUS_LABEL: Record<SelectionStatus, string> = {
+export const STATUS_LABEL: Record<PresetStatus, string> = {
   researching: "企業研究中",
   es_writing: "ES作成中",
   es_submitted: "ES提出済み",
@@ -75,6 +78,17 @@ export const STATUS_LABEL: Record<SelectionStatus, string> = {
   declined: "辞退",
   rejected: "不採用",
 };
+
+const PRESET_STATUS_SET = new Set(Object.keys(STATUS_LABEL));
+
+export function isPresetStatus(status: string): status is PresetStatus {
+  return PRESET_STATUS_SET.has(status);
+}
+
+// 自由入力のステータスなら、そのままの文字列を表示する
+export function getStatusLabel(status: SelectionStatus): string {
+  return isPresetStatus(status) ? STATUS_LABEL[status] : status;
+}
 
 export const TAG_LABEL: Record<StruggleTag, string> = {
   es: "ES",

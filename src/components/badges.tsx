@@ -2,6 +2,8 @@ import {
   STATUS_LABEL,
   TAG_LABEL,
   TEMPERATURE_LABEL,
+  getStatusLabel,
+  isPresetStatus,
   type SelectionStatus,
   type StruggleTag,
   type Temperature,
@@ -10,6 +12,7 @@ import {
 export function StatusBadge({ status }: { status: SelectionStatus }) {
   const isOffer = status === "offer";
   const isDown = status === "declined" || status === "rejected";
+  const isCustom = !isPresetStatus(status);
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
@@ -17,10 +20,12 @@ export function StatusBadge({ status }: { status: SelectionStatus }) {
           ? "border-[var(--moss)] bg-[var(--moss-soft)] text-[var(--moss)]"
           : isDown
           ? "border-[var(--line)] bg-transparent text-[var(--slate)] line-through"
+          : isCustom
+          ? "border-[var(--gold)] bg-[var(--gold-soft)]/30 text-[var(--ink-soft)]"
           : "border-[var(--line)] bg-white text-[var(--ink-soft)]"
       }`}
     >
-      {STATUS_LABEL[status]}
+      {getStatusLabel(status)}
     </span>
   );
 }

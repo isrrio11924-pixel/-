@@ -45,13 +45,7 @@ create table companies (
   mentee_id uuid not null references profiles(id) on delete cascade,
   name text not null,
   industry text,
-  status text not null default 'researching' check (
-    status in (
-      'researching', 'es_writing', 'es_submitted', 'web_test',
-      'interview_1', 'interview_2', 'interview_final',
-      'offer', 'declined', 'rejected'
-    )
-  ),
+  status text not null default 'researching', -- 決まった候補に加え、自由入力の文字列も許容
   next_deadline date,
   temperature text not null default 'good' check (temperature in ('good', 'unsure', 'urgent')),
   updated_at timestamptz not null default now(),
